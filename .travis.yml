@@ -10,7 +10,7 @@ addons:
 sudo: false
 env:
   global:
-    - DATABASE='drupal_test'
+    - DATABASE='drupal_pantheon_travis'
     - DB_USERNAME='root'
     - DB_ENCODE='utf8'
 before_install:
