@@ -1,0 +1,31 @@
+# Travis CI configuration
+
+language: php
+php:
+  - "5.4"
+services: mysql
+addons:
+  firefox: "28.0"
+# use docker infrastructure for builds
+sudo: false
+env:
+  global:
+    - DATABASE='drupal_test'
+    - DB_USERNAME='root'
+    - DB_ENCODE='utf8'
+before_install:
+  - mysql -e "create database IF NOT EXISTS drupal_test;" -uroot
+install:
+  - composer global require drush/drush:6.* drupal/coder:~7.2
+  - export PATH="$HOME/.composer/vendor/bin:$PATH"
+before_script:
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+script:
+  - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
+  - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
+  - drush runserver 127.0.0.1:8083
+branches:
+    only:
+      - master
+      - develop
