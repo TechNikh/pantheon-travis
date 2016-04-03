@@ -7,7 +7,7 @@ services: mysql
 addons:
   firefox: "28.0"
 # use docker infrastructure for builds
-sudo: false
+sudo: true
 env:
   global:
     - DATABASE='drupal_pantheon_travis'
@@ -25,8 +25,8 @@ install:
 before_script:
   #- export DISPLAY=:99.0
   #- sh -e /etc/init.d/xvfb start
-  - apt-get update -q
-  - apt-get install -y imagemagick
+  - sudo apt-get update -q
+  - sudo apt-get install -y imagemagick
   - printf "\n" | pecl install imagick
 script:
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
