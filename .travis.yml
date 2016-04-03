@@ -6,7 +6,7 @@ php:
 services: mysql
 addons:
   firefox: "28.0"
-# use docker infrastructure for builds
+# sudo to install imagemagick
 sudo: true
 env:
   global:
@@ -31,11 +31,13 @@ before_script:
 script:
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
-  - which convert
   - drush dl drulenium-7.x-1.x-dev
   - drush en drulenium_visual_regression -y
+  - drush en libraries -y
+  - drush vrdl # To download selenium webdriver library
   - drush vset --yes drulenium_vr_config_server_opt 'local'
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
+  - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
   - drush vset --yes drulenium_vr_release_upload_to_Drulenium_org 1
   - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
   - drush vrc http://dev-drulenium-travis.pantheonsite.io/ --pages=node
