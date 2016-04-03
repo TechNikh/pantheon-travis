@@ -15,18 +15,31 @@ env:
     - DB_ENCODE='utf8'
 before_install:
   - mysql -e "create database IF NOT EXISTS drupal_test;" -uroot
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - "wget http://selenium.googlecode.com/files/selenium-server-standalone-2.39.0.jar"
+  - "java -jar selenium-server-standalone-2.39.0.jar > /tmp/selenium.log 2> /tmp/selenium.error &"
 install:
   - composer global require drush/drush:6.*
   - export PATH="$HOME/.composer/vendor/bin:$PATH"
 before_script:
-  - export DISPLAY=:99.0
-  - sh -e /etc/init.d/xvfb start
+  #- export DISPLAY=:99.0
+  #- sh -e /etc/init.d/xvfb start
+  - sudo apt-get update -q
+  - sudo apt-get install -y imagemagick
+  - printf "\n" | pecl install imagick
 script:
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
+  - which convert
   - drush dl drulenium-7.x-1.x-dev
   - drush en drulenium_visual_regression -y
+  - drush vset --yes drulenium_vr_config_server_opt 'local'
+  - drush vset --yes drulenium_vr_config_image_server_opt 'local'
+  - drush vset --yes drulenium_vr_release_upload_to_Drulenium_org 1
+  - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
   - drush vrc http://dev-drulenium-travis.pantheonsite.io/ --pages=node
+  - drush vrd
 branches:
     only:
       - master
