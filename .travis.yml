@@ -38,6 +38,7 @@ script:
   - drush vset --yes drulenium_vr_config_server_opt 'local'
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
   - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
+  - drush vset --yes drulenium_vr_release_notify_email 'info@technikh.com'
   - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
   - drush vrc http://$TRAVIS_BRANCH-drulenium-travis.pantheonsite.io/ --pages=node
   - drush vr-diff
