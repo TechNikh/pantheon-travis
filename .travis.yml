@@ -31,17 +31,20 @@ before_script:
 script:
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
-  - drush dl drulenium-7.x-1.x-dev
-  - drush en drulenium_visual_regression -y
-  - drush en libraries -y
-  - drush vrdl # To download selenium webdriver library
+  - drush dl drulenium-7.x-2.x-dev
+  - drush en drulenium -y
+  - drush vr-download-webdriver # To download selenium webdriver library
   - drush vset --yes drulenium_vr_config_server_opt 'local'
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
   - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
-  - drush vset --yes drulenium_vr_release_upload_to_Drulenium_org 1
   - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
-  - drush vrc http://dev-drulenium-travis.pantheonsite.io/ --pages=node
-  - drush vrd
+  - drush vrc http://$TRAVIS_BRANCH-drulenium-travis.pantheonsite.io/ --pages=node
+  - drush vr-diff
+  - drush dl drulenium_imgur-7.x-1.x-dev
+  - drush en drulenium_imgur -y
+  - drush vset --yes drulenium_imgur_client_id $IMGUR_CLIENT_ID
+  - drush vset --yes drulenium_imgur_client_secret $IMGUR_CLIENT_SECRET
+  - drush vr-diff-upload
 branches:
     only:
       - master
