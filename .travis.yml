@@ -47,7 +47,7 @@ script:
   - drush vrc http://test-drulenium-travis.pantheonsite.io/ --preset_category=Regression
   # If $BRANCH = master, use dev environment
   - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --preset_category=Regression
-  - drush vr-diff
+  - drush vr-diff --preset_category=Regression
   - drush dl drulenium_imgur-7.x-1.x-dev
   - drush en drulenium_imgur -y
   - drush vset --yes drulenium_imgur_client_id $IMGUR_CLIENT_ID
