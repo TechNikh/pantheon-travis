@@ -37,15 +37,16 @@ script:
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
   - drush dl drulenium-7.x-2.x-dev
   - drush en drulenium -y
+  - drush en drulenium_tests -y
   - drush en libraries -y
   - drush vr-download-webdriver # To download selenium webdriver library
   - drush vset --yes drulenium_vr_config_server_opt 'local'
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
   - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
   - drush vset --yes drulenium_vr_release_notify_email 'info@technikh.com'
-  - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
+  - drush vrc http://test-drulenium-travis.pantheonsite.io/ --preset_category=Regression
   # If $BRANCH = master, use dev environment
-  - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --pages=node
+  - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --preset_category=Regression
   - drush vr-diff
   - drush dl drulenium_imgur-7.x-1.x-dev
   - drush en drulenium_imgur -y

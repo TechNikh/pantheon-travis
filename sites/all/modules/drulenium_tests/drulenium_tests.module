@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Drulenium tests feature.
+ */
+
+include_once 'drulenium_tests.features.inc';
