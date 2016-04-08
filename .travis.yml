@@ -29,6 +29,10 @@ before_script:
   - sudo apt-get install -y imagemagick
   - printf "\n" | pecl install imagick
 script:
+  # https://graysonkoonce.com/getting-the-current-branch-name-during-a-pull-request-in-travis-ci/
+  - export PR=https://api.github.com/repos/$TRAVIS_REPO_SLUG/pulls/$TRAVIS_PULL_REQUEST
+  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo `curl -s $PR | jq -r .head.ref`; fi)
+  - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, BRANCH=$BRANCH"
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
   - drush dl drulenium-7.x-2.x-dev
@@ -38,8 +42,10 @@ script:
   - drush vset --yes drulenium_vr_config_server_opt 'local'
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
   - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
+  - drush vset --yes drulenium_vr_release_notify_email 'info@technikh.com'
   - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=node
-  - drush vrc http://$TRAVIS_BRANCH-drulenium-travis.pantheonsite.io/ --pages=node
+  # If $BRANCH = master, use dev environment
+  - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --pages=node
   - drush vr-diff
   - drush dl drulenium_imgur-7.x-1.x-dev
   - drush en drulenium_imgur -y
@@ -49,4 +55,3 @@ script:
 branches:
     only:
       - master
-      - develop
