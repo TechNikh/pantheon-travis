@@ -35,7 +35,7 @@ script:
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, BRANCH=$BRANCH"
   - DB_URL=mysql://$DB_USERNAME@127.0.0.1/$DATABASE
   - drush site-install testing --db-url=$DB_URL --site-name=my-site --yes
-  - drush dl drulenium-7.x-2.x-dev
+  - drush dl drulenium-7.x-2.x-dev -y
   - drush en drulenium -y
   - drush en drulenium_tests -y
   - drush en libraries -y
@@ -44,9 +44,10 @@ script:
   - drush vset --yes drulenium_vr_config_image_server_opt 'local'
   - drush vset --yes drulenium_vr_release_imagemagick_path '/usr/bin'
   - drush vset --yes drulenium_vr_release_notify_email 'info@technikh.com'
-  - drush vrc http://test-drulenium-travis.pantheonsite.io/ --preset_category=Regression
+  - drush vrc http://test-drulenium-travis.pantheonsite.io/ --pages=search/node/drupal
   # If $BRANCH = master, use dev environment
-  - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --preset_category=Regression
+  #- drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --preset_category=Regression
+  - drush vrc http://$BRANCH-drulenium-travis.pantheonsite.io/ --pages=search/node/drupal
   - drush vr-diff
   - drush dl drulenium_imgur-7.x-1.x-dev
   - drush en drulenium_imgur -y
