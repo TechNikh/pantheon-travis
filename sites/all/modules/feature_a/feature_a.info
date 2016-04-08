@@ -1,0 +1,11 @@
+name = feature_A
+core = 7.x
+package = Features
+dependencies[] = css_injector
+dependencies[] = ctools
+dependencies[] = drulenium
+features[css_injector_rule][] = h2-green-to-white
+features[ctools][] = css_injector:css_injector_rules:1
+features[ctools][] = drulenium:drulenium:1
+features[drulenium_preset][] = search
+features[features_api][] = api:2
