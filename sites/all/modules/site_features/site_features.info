@@ -2,6 +2,4 @@ name = Site Features
 core = 7.x
 package = Features
 dependencies[] = css_injector
-features[css_injector_rule][] = h2-green-to-white
-features[ctools][] = css_injector:css_injector_rules:1
 features[features_api][] = api:2
