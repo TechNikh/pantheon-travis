@@ -1,0 +1,931 @@
+<?php
+
+define('PLUGIN_FILL_TEXTBOX', 'drulenium_filltextbox');
+define('PLUGIN_TAKE_SCREENSHOT', 'drulenium_takescreenshot');
+define('PLUGIN_CLICK_BUTTON', 'drulenium_clickbutton');
+define('PLUGIN_HOVER_OVER', 'drulenium_mouseover');
+define('PLUGIN_WAIT', 'drulenium_wait');
+define('PLUGIN_VERIFY_TEXT', 'drulenium_facepile');
+
+define('BLOCKLY_FILL_TEXTBOX', 'fill_textbox');
+define('BLOCKLY_CLICK_BUTTON', 'click_button');
+define('BLOCKLY_TAKE_SCREENSHOT', 'take_screenshot');
+define('BLOCKLY_HOVER_OVER', 'mouse_over');
+define('BLOCKLY_WAIT', 'wait');
+
+define('TASK_GOTO_URL', 'goto_task');
+define('TASK_TAKE_SCREENSHOT', 'snapshot_task');
+define('TASK_FILL_TEXTBOX', 'fill_textbox_task');
+define('TASK_CLICK_BUTTON', 'click_button_task');
+define('TASK_HOVER_OVER', 'hover_over_task');
+define('TASK_WAIT', 'wait_task');
+define('TASK_VERIFY_TEXT', 'verify_text_task');
+
+/**
+ * Implements hook_entity_info().
+ *
+ * This is the fundamental description of the entity.
+ *
+ * It provides a single entity with a single bundle and without revision
+ * support.
+ */
+function drulenium_entity_info() {
+  $info['drulenium'] = array(
+    // A human readable label to identify our entity.
+    'label' => t('Drulenium'),
+
+    // The controller for our Entity, extending the Drupal core controller.
+    'controller class' => 'DruleniumEntityController',
+
+    // The table for this entity defined in hook_schema()
+    'base table' => 'drulenium',
+
+    // Returns the uri elements of an entity.
+    'uri callback' => 'drulenium_uri',
+
+    // IF fieldable == FALSE, we can't attach fields.
+    'fieldable' => TRUE,
+
+    // entity_keys tells the controller what database fields are used for key
+    // functions. It is not required if we don't have bundles or revisions.
+    // Here we do not support a revision, so that entity key is omitted.
+    'entity keys' => array(
+      // The 'id' (drulenium_id here) is the unique id.
+      'id' => 'drulenium_id' ,
+      // Bundle will be determined by the 'bundle_type' field.
+      'bundle' => 'bundle_type',
+    ),
+    'bundle keys' => array(
+      'bundle' => 'bundle_type',
+    ),
+
+    // FALSE disables caching. Caching functionality is handled by Drupal core.
+    'static cache' => TRUE,
+
+    // Bundles are alternative groups of fields or configuration
+    // associated with a base entity type.
+    'bundles' => array(
+      'drulenium_test_run' => array(
+        'label' => 'Drulenium release',
+        // 'admin' key is used by the Field UI to provide field and
+        // display UI pages.
+        /*'admin' => array(
+          'path' => 'admin/structure/drulenium/results/manage',
+          'access arguments' => array('administer drulenium entities'),
+        ),*/
+      ),
+    ),
+    // View modes allow entities to be displayed differently based on context.
+    // As a demonstration we'll support "Tweaky", but we could have and support
+    // multiple display modes.
+    'view modes' => array(
+      'tweaky' => array(
+        'label' => t('Tweaky'),
+        'custom settings' => FALSE,
+      ),
+    ),
+  );
+
+  return $info;
+}
+
+/**
+ * Fetch a basic object.
+ *
+ * This function ends up being a shim between the menu system and
+ * drulenium_load_multiple().
+ *
+ * This function gets its name from the menu system's wildcard
+ * naming conventions. For example, /path/%wildcard would end
+ * up calling wildcard_load(%wildcard value). In our case defining
+ * the path: examples/drulenium/basic/%drulenium in
+ * hook_menu() tells Drupal to call drulenium_load().
+ *
+ * @param int $drulenium_id
+ *   Integer specifying the basic entity id.
+ * @param bool $reset
+ *   A boolean indicating that the internal cache should be reset.
+ *
+ * @return object
+ *   A fully-loaded $basic object or FALSE if it cannot be loaded.
+ *
+ * @see drulenium_load_multiple()
+ * @see drulenium_menu()
+ */
+function drulenium_load($drulenium_id = NULL, $reset = FALSE) {
+  $drulenium_ids = (isset($drulenium_id) ? array($drulenium_id) : array());
+  $basic = drulenium_load_multiple($drulenium_ids, array(), $reset);
+  return $basic ? reset($basic) : FALSE;
+}
+
+/**
+ * Loads multiple basic entities.
+ *
+ * We only need to pass this request along to entity_load(), which
+ * will in turn call the load() method of our entity controller class.
+ */
+function drulenium_load_multiple($drulenium_ids = FALSE, $conditions = array(), $reset = FALSE) {
+  return entity_load('drulenium', $drulenium_ids, $conditions, $reset);
+}
+
+/**
+ * Implements the uri callback.
+ */
+function drulenium_uri($basic) {
+  return array(
+    'path' => 'examples/drulenium/basic/' . $basic->drulenium_id,
+  );
+}
+
+/**
+ * Returns a render array with all drulenium entities.
+ *
+ * In this basic example we know that there won't be many entities,
+ * so we'll just load them all for display. See pager_example.module
+ * to implement a pager. Most implementations would probably do this
+ * with the contrib Entity API module, or a view using views module,
+ * but we avoid using non-core features in the Examples project.
+ *
+ * @see pager_example.module
+ */
+function drulenium_list_entities() {
+  $content = array();
+  // Load all of our entities.
+  $entities = drulenium_load_multiple();
+  if (!empty($entities)) {
+    foreach ($entities as $entity) {
+      // Create tabular rows for our entities.
+      $test_name = db_select('drulenium_preset', 'p')
+        ->fields('p', array('name'))
+        ->condition('p.oid', $entity->test_id)
+        ->execute()
+        ->fetchfield();
+      $rows[] = array(
+        'data' => array(
+          'id' => $entity->drulenium_id,
+          'test_id' => $test_name,
+          'status' => $entity->status,
+          'started' => !empty($entity->started) ? format_date($entity->started) : '',
+          'completed' => !empty($entity->completed) ? format_date($entity->completed) : '',
+        ),
+      );
+    }
+    // Put our entities into a themed table. See theme_table() for details.
+    $content['entity_table'] = array(
+      '#theme' => 'table',
+      '#rows' => $rows,
+      '#header' => array(t('ID'), t('Test'), t('Status'), t('Started'), t('Completed')),
+    );
+  }
+  else {
+    // There were no entities. Tell the user.
+    $content[] = array(
+      '#type' => 'item',
+      '#markup' => t('No drulenium entities currently exist.'),
+    );
+  }
+  return $content;
+}
+
+/**
+ * DruleniumEntityControllerInterface definition.
+ *
+ * We create an interface here because anyone could come along and
+ * use hook_entity_info_alter() to change our controller class.
+ * We want to let them know what methods our class needs in order
+ * to function with the rest of the module, so here's a handy list.
+ *
+ * @see hook_entity_info_alter()
+ */
+interface DruleniumEntityControllerInterface
+  extends DrupalEntityControllerInterface {
+
+  /**
+   * Create an entity.
+   */
+  public function create();
+
+  /**
+   * Save an entity.
+   *
+   * @param object $entity
+   *   The entity to save.
+   */
+  public function save($entity);
+
+  /**
+   * Delete an entity.
+   *
+   * @param object $entity
+   *   The entity to delete.
+   */
+  public function delete($entity);
+
+}
+
+/**
+ * DruleniumEntityController extends DrupalDefaultEntityController.
+ *
+ * Our subclass of DrupalDefaultEntityController lets us add a few
+ * important create, update, and delete methods.
+ */
+class DruleniumEntityController
+  extends DrupalDefaultEntityController
+  implements DruleniumEntityControllerInterface {
+
+  /**
+   * Create and return a new drulenium entity.
+   */
+  public function create() {
+    $entity = new stdClass();
+    $entity->type = 'drulenium';
+    $entity->drulenium_id = 0;
+    $entity->created = REQUEST_TIME;
+    $entity->console_log = '';
+
+    $entity->status = -1;
+    $entity->bundle_type = 'drulenium_test_run';
+    $entity->title = '';
+    $entity->secure_id = '';
+    $entity->test_id = '';
+    $entity->base_url = '';
+    $settings_array = array();
+    $entity->settings = drupal_json_encode($settings_array);
+    return $entity;
+  }
+
+  /**
+   * Saves the custom fields using drupal_write_record().
+   */
+  public function save($entity) {
+    // If our entity has no drulenium_id, then we need to give it a
+    // time of creation.
+    if (empty($entity->drulenium_id)) {
+      $entity->created = time();
+    }
+    // Invoke hook_entity_presave().
+    module_invoke_all('entity_presave', $entity, 'drulenium');
+    // The 'primary_keys' argument determines whether this will be an insert
+    // or an update. So if the entity already has an ID, we'll specify
+    // drulenium_id as the key.
+    $primary_keys = $entity->drulenium_id ? 'drulenium_id' : array();
+    // Write out the entity record.
+    drupal_write_record('drulenium', $entity, $primary_keys);
+    // We're going to invoke either hook_entity_update() or
+    // hook_entity_insert(), depending on whether or not this is a
+    // new entity. We'll just store the name of hook_entity_insert()
+    // and change it if we need to.
+    $invocation = 'entity_insert';
+    // Now we need to either insert or update the fields which are
+    // attached to this entity. We use the same primary_keys logic
+    // to determine whether to update or insert, and which hook we
+    // need to invoke.
+    if (empty($primary_keys)) {
+      field_attach_insert('drulenium', $entity);
+    }
+    else {
+      field_attach_update('drulenium', $entity);
+      $invocation = 'entity_update';
+    }
+    // Invoke either hook_entity_update() or hook_entity_insert().
+    module_invoke_all($invocation, $entity, 'drulenium');
+    return $entity;
+  }
+
+  /**
+   * Delete a single entity.
+   *
+   * Really a convenience function for deleteMultiple().
+   */
+  public function delete($entity) {
+    $this->deleteMultiple(array($entity));
+  }
+
+  /**
+   * Delete one or more drulenium entities.
+   *
+   * Deletion is unfortunately not supported in the base
+   * DrupalDefaultEntityController class.
+   *
+   * @param array $entities
+   *   An array of entity IDs or a single numeric ID.
+   */
+  public function deleteMultiple($entities) {
+    $drulenium_ids = array();
+    if (!empty($entities)) {
+      $transaction = db_transaction();
+      try {
+        foreach ($entities as $entity) {
+          // Invoke hook_entity_delete().
+          module_invoke_all('entity_delete', $entity, 'drulenium');
+          field_attach_delete('drulenium', $entity);
+          $drulenium_ids[] = $entity->drulenium_id;
+        }
+        db_delete('drulenium')
+          ->condition('drulenium_id', $drulenium_ids, 'IN')
+          ->execute();
+      }
+      catch (Exception $e) {
+        $transaction->rollback();
+        watchdog_exception('drulenium', $e);
+        throw $e;
+      }
+    }
+  }
+}
+
+/**
+ * We save the entity by calling the controller.
+ */
+function drulenium_save(&$entity) {
+  return entity_get_controller('drulenium')->save($entity);
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function drulenium_permission() {
+  return array(
+    'run_test_cases' => array(
+      'title' => t('Run Test Cases'),
+      'description' => t('See the list of test cases and run them'),
+    ),
+    'create_test_cases' => array(
+      'title' => t('Create test cases'),
+      'description' => t('add or remove test cases'),
+    ),
+    'administer_tests' => array(
+      'title' => t('Administer tests'),
+      'description' => t('Run, Add or Delete tests'),
+    ),
+    'administer_drulenium_settings' => array(
+      'title' => t('Administer Drulenium Settings'),
+      'description' => t('Administer settings'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_libraries_info().
+ *
+ * For defining external libraries.
+ */
+function drulenium_libraries_info() {
+  $libraries['blockly'] = array(
+    'name' => 'Blockly',
+    'vendor url' => 'https://github.com/google/blockly/',
+    'download url' => 'https://github.com/google/blockly/zipball/master',
+    'versions' => array(
+      '1.0.0' => array(
+        'variants' => array(
+          'minified' => array(
+            'files' => array(
+              'js' => array('blockly_compressed.js'),
+            ),
+          ),
+          'source' => array(
+            'files' => array(
+              'js' => array('blockly_uncompressed.js'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return $libraries;
+}
+
+/**
+ * Implementation of drulenium_default_presets().
+ *
+ * Provide a couple of default presets.
+ */
+function drulenium_default_drulenium_preset() {
+  $export = array();
+
+  $drulenium_preset = new stdClass();
+  $drulenium_preset->disabled = TRUE; /* Edit this to true to make a default drulenium_preset disabled initially */
+  $drulenium_preset->api_version = 1;
+  $drulenium_preset->name = 'user_registration_form_validations';
+  $drulenium_preset->description = 'User registration form validations';
+  $drulenium_preset->category = 'Regression';
+  $drulenium_preset->settings = array(
+    'pages' => array(
+      'path' => array(
+        'custom' => 'user/register',
+      ),
+      'node' => array(
+        'custom' => array(
+          'article' => 0,
+          'page' => 0,
+        ),
+      ),
+      'term' => array(
+        'custom' => array(
+          1 => 0,
+        ),
+      ),
+      'drulenium_settings_all_plugins__pages__active_tab' => 'edit-drulenium-settings-all-plugins-pages-path',
+    ),
+    'blockly' => array(
+      'data' => '<xml xmlns="http://www.w3.org/1999/xhtml"><block type="click_button" id="j/6?c=*?djP}7E^8.*2F" x="109" y="24"><field name="locator_type">id</field><field name="locator">edit-submit</field><next><block type="take_screenshot" id=":`*,!--mp.Y?h7i9hR_|"><field name="snapshot_mode">include</field><field name="locator_type">id</field><field name="locator"></field></block></next></block></xml>',
+    ),
+    'plugins' => array(
+      'drulenium_clickbutton_0' => array(
+        'type' => 'drulenium_clickbutton',
+        'weight' => 0,
+        'description' => array(
+          'locator_type' => 'id',
+          'locator' => 'edit-submit',
+        ),
+      ),
+      'drulenium_takescreenshot_1' => array(
+        'type' => 'drulenium_takescreenshot',
+        'weight' => 1,
+        'description' => array(
+          'snapshot_mode' => 'include',
+          'locator_type' => 'id',
+          'locator' => '',
+        ),
+      ),
+    ),
+  );
+
+  $export['user_registration_form_validations'] = $drulenium_preset;
+
+  $drulenium_preset = new stdClass();
+  $drulenium_preset->disabled = FALSE; /* Edit this to true to make a default drulenium_preset disabled initially */
+  $drulenium_preset->api_version = 1;
+  $drulenium_preset->name = 'homepage_test';
+  $drulenium_preset->description = 'Homepage Test';
+  $drulenium_preset->category = 'Regression';
+  $drulenium_preset->settings = array(
+    'pages' => array(
+      'path' => array(
+        'custom' => '<front>',
+      ),
+      'node' => array(
+        'custom' => array(
+          'article' => 0,
+          'page' => 0,
+        ),
+      ),
+      'term' => array(
+        'custom' => array(
+          1 => 0,
+        ),
+      ),
+      'drulenium_settings_all_plugins__pages__active_tab' => 'edit-drulenium-settings-all-plugins-pages-path',
+    ),
+    'blockly' => array(
+      'data' => '<xml xmlns="http://www.w3.org/1999/xhtml"><block type="take_screenshot" id="X|Vy:QohN+V{?lUoHAZx" x="113" y="34"><field name="snapshot_mode">include</field><field name="locator_type">id</field><field name="locator"></field></block></xml>',
+    ),
+    'plugins' => array(
+      'drulenium_takescreenshot_0' => array(
+        'type' => 'drulenium_takescreenshot',
+        'weight' => 0,
+        'description' => array(
+          'snapshot_mode' => 'include',
+          'locator_type' => 'id',
+          'locator' => '',
+        ),
+      ),
+    ),
+  );
+
+  $export['homepage_test'] = $drulenium_preset;
+
+  return $export;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function drulenium_menu() {
+  $items = array();
+
+  /*$items['admin/structure/drulenium'] = array(
+    'title' => 'Drulenium',
+    'description' => 'Settings for Drulenium plugins.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array(
+      'drulenium_admin_settings_form'
+    ),
+    'file' => 'drulenium.admin.inc',
+    'access callback' => 'user_access',
+    'access arguments' => array(
+      'create_test_cases'
+    )
+  );
+
+  $items['admin/structure/drulenium/settings'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Settings',
+    'description' => 'Settings for Drulenium plugins.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array(
+      'drulenium_admin_settings_form'
+    ),
+    'file' => 'drulenium.admin.inc',
+    'access callback' => 'user_access',
+    'access arguments' => array(
+      'create_test_cases'
+    )
+  );*/
+  $items['drulenium'] = array(
+    'title' => 'Run tests',
+    'page callback' => 'drulenium_default_menu_callback',
+    'access arguments' => array(
+      'run_test_cases'
+    ),
+  );
+
+  return $items;
+}
+
+function drulenium_default_menu_callback() {
+  // Redirect to Tests page
+  drupal_goto('drulenium/tests');
+}
+
+function drulenium_tests_table_list() {
+  $header = array(t('Name'), t('Description'), t('Visual regression'));
+  $rows = array();
+  $presets = drulenium_preset_load();
+  $category_presets = array();
+  $output = '';
+  foreach ($presets as $key =>$value) {
+    $category = $value->category;
+    if(empty($category))  $category = 'Miscellaneous';
+    $category_presets[$category][$key] = $value;
+  }
+  foreach ($category_presets as $category_key => $preset_value) {
+    $output .= '<h2>'.$category_key.'</h2> ';
+    $rows = array();
+    foreach ($preset_value as $key =>$value) {
+      $rows[] = array(
+        $key,
+        $value->description,
+        l(t("Visual regression"), "admin/structure/drulenium/vr", array('query' => array('cid' => $key))),
+      );
+    }
+    $output .= theme('table', array('header' => $header, 'rows' => $rows));
+  }
+  return $output;
+}
+
+function drulenium_sort_plugins_by_weight($a, $b)
+{
+  $a_weight = $a['weight']['#default_value'];
+  $b_weight = $b['weight']['#default_value'];
+  if ($a_weight == $b_weight) {
+    return 0;
+  }
+  return ($a_weight < $b_weight) ? -1 : 1;
+}
+
+function drulenium_sort_plugin_items_by_weight($a, $b)
+{
+  $a_weight = $a['weight'];
+  $b_weight = $b['weight'];
+  if ($a_weight == $b_weight) {
+    return 0;
+  }
+  return ($a_weight < $b_weight) ? -1 : 1;
+}
+
+function drulenium_presets_ui_form_table_theme($orig_form) {
+  $form = $orig_form;
+  // Initialize the variable which will store our table rows.
+  $rows = array();
+  if(isset($form['test_plugin_type']['plugin_items'])){
+    uasort($form['test_plugin_type']['plugin_items'], "drulenium_sort_plugins_by_weight");
+
+    // Iterate over each element in our $form['test_plugin_type']['plugin_items'] array.
+    foreach (element_children($form['test_plugin_type']['plugin_items']) as $id) {
+      foreach (element_children($form['test_plugin_type']['plugin_items'][$id]['description']) as $ele_id) {
+        //Copying default_value to #value because of https://www.drupal.org/node/283640
+        $form['test_plugin_type']['plugin_items'][$id]['description'][$ele_id]['#value'] = $form['test_plugin_type']['plugin_items'][$id]['description'][$ele_id]['#default_value'];
+      }
+      $form['test_plugin_type']['plugin_items'][$id]['weight']['#value'] = $form['test_plugin_type']['plugin_items'][$id]['weight']['#default_value'];
+      unset($form['test_plugin_type']['plugin_items'][$id]['weight']['#attributes']['class'][2]);
+      unset($form['test_plugin_type']['plugin_items'][$id]['name']['#prefix']);
+      unset($form['test_plugin_type']['plugin_items'][$id]['name']['#suffix']);
+      unset($form['test_plugin_type']['plugin_items'][$id]['description']['#attributes']);
+      $form['test_plugin_type']['plugin_items'][$id]['description']['#attributes']['class'] = array('collapsible');
+
+      $rows[] = array(
+        'data' => array(
+          drupal_render($form['test_plugin_type']['plugin_items'][$id]['name']),
+          drupal_render($form['test_plugin_type']['plugin_items'][$id]['description']),
+          drupal_render($form['test_plugin_type']['plugin_items'][$id]['weight']),
+        ),
+        'class' => array('draggable'),
+      );
+    }
+  }
+
+  // We now define the table header values.  Ensure that the 'header' count
+  // matches the final column count for your table.
+  $header = array(t('Name'), t('Description'), t('Weight'));
+
+  $table_id = 'plugin-items-table';
+
+  // We can render our tabledrag table for output.
+  $output = theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array('id' => $table_id),
+  ));
+
+  drupal_add_tabledrag($table_id, 'order', 'sibling', 'plugin-item-weight');
+  return $output;
+}
+
+/**
+ * Implements hook_content_extra_fields.
+ */
+function drulenium_field_extra_fields() {
+  /*$extras = array();
+  if ($presets = drulenium_get_presets()) {
+
+    foreach ( $presets as $preset ) {
+      $plugin = drulenium_test_plugin_load($preset->plugin_type);
+      $function = ctools_plugin_get_function($plugin, 'hook_field_extra_fields');
+      if ($function) {
+        $function($extras, $preset);
+      }
+    }
+  }*/
+
+  $form_elements['console_log'] = array(
+    'label' => t('Console Log'),
+    'description' => t('Console Log (an extra form field)'),
+    'weight' => -5,
+  );
+  $display_elements['created'] = array(
+    'label' => t('Creation date'),
+    'description' => t('Creation date (an extra display field)'),
+    'weight' => 0,
+  );
+  $display_elements['console_log'] = array(
+    'label' => t('Console Log'),
+    'description' => t('Just like title, but trying to point out that it is a separate property'),
+    'weight' => 0,
+  );
+
+  // Since we have only one bundle type, we'll just provide the extra_fields
+  // for it here.
+  $extras['drulenium']['drulenium_test_run']['form'] = $form_elements;
+  $extras['drulenium']['drulenium_test_run']['display'] = $display_elements;
+
+  return $extras;
+}
+
+// ctools hooks / api
+
+/**
+ * Implements hook_ctools_plugin_type() to inform the plugin system
+ * owns 'test_plugin' plugin types.
+ *
+ * "process" tells ctools that by default each
+ * plugin has some default functions named consistently
+ * after the plugin name
+ * @see _drulenium_ctools_plugin_test_plugin_process()
+ */
+function drulenium_ctools_plugin_type() {
+
+  return array(
+    'test_plugin' => array(
+      'process' => '_drulenium_ctools_plugin_test_plugin_process'
+    )
+  );
+}
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function drulenium_ctools_plugin_api($module, $api) {
+  if ($module == 'drulenium' && $api == 'drulenium') {
+    return array(
+      'version' => 1
+    );
+  }
+  //boxes
+  if ($module == 'boxes' && $api == 'plugins') {
+    return array(
+      'version' => 1
+    );
+  }
+}
+
+/**
+ * Implementation of hook_ctools_plugin_directory().
+ */
+function drulenium_ctools_plugin_directory($module, $type) {
+
+  return 'plugins/' . $type;
+
+}
+
+/**
+ * Helper function for ctools plugin 'process'
+ * @param $plugin
+ * @param $info
+ * @see drulenium_ctools_plugin_test_plugin()
+ */
+function _drulenium_ctools_plugin_test_plugin_process(&$plugin, $info) {
+  // print $plugin['name'];
+  //die;
+  $plugin['default values'] = $plugin['name'] . '_defaults';
+  $plugin['fb plugin form'] = $plugin['name'] . '_fb_settings';
+  $plugin['drupal settings form'] = $plugin['name'] . '_drupal_settings';
+}
+
+
+
+// ctools wrapper functions for 'test_plugin"
+
+
+/**
+ * load a specific test_plugin or all of them
+ */
+function drulenium_test_plugin_load($type = NULL) {
+  ctools_include('plugins');
+  $plugins = ctools_get_plugins('drulenium', 'test_plugin');
+  if (isset($type) && isset($plugins[$type])) {
+    return $plugins[$type];
+  }
+
+  return $plugins;
+}
+
+/**
+ * Return the default vaules of a certain plugin
+ * type as defined by facebook
+ * @param $type the plugin type/name (i.e. like).
+ */
+function drulenium_test_plugin_defaults($type) {
+  $plugin = drulenium_test_plugin_load($type);
+
+  $function = ctools_plugin_get_function($plugin, 'default values');
+  if ($function) {
+    return $function();
+  }
+
+  return array();
+}
+
+/**
+ * Return the facebook plugin form for a given type
+ * @param $type the plugin type/name (i.e. like).
+ */
+function drulenium_test_plugin_fb_settings_form($type, $options) {
+  $form = array();
+  $plugin = drulenium_test_plugin_load($type);
+
+  $function = ctools_plugin_get_function($plugin, 'fb plugin form');
+  if ($function) {
+    $form += $function($options);
+  }
+
+  return $form;
+}
+
+/**
+ * Return the drupal settings form for a given plugin type
+ * @param $type the plugin type/name (i.e. like).
+ */
+function drulenium_test_plugin_drupal_settings_form($type, $options) {
+  $form = array();
+
+  $plugin = drulenium_test_plugin_load($type);
+
+  $function = ctools_plugin_get_function($plugin, 'drupal settings form');
+  if ($function) {
+    $form = $function($options);
+  }
+
+  return $form;
+}
+
+
+// ctools wrapper functions for "fb social preset"
+
+
+/**
+ * load the preset
+ * @param $name
+ * the preset name
+ * @param $reset
+ */
+function drulenium_preset_load($name = NULL, $reset = FALSE) {
+  ctools_include('export');
+  if ($reset) {
+    ctools_export_load_object_reset('drulenium_preset');
+  }
+  $presets = ctools_export_load_object('drulenium_preset', 'all');
+
+  if (isset($name)) {
+    return isset($presets[$name]) ? $presets[$name] : FALSE;
+  }
+
+  return $presets;
+}
+
+/**
+ * Get all presets or a preset by name. By default
+ * it returns only enabled presets.
+ *
+ * @param $name
+ *    the preset name
+ * @param $enabled
+ *
+ * @param $reset
+ */
+function drulenium_get_presets($name = NULL, $enabled = TRUE, $reset = FALSE) {
+
+  $presets = drulenium_preset_load($name, $reset);
+
+  if (empty($presets)) {
+    return FALSE;
+  }
+
+  if (is_object($presets)) {
+    $presets = array(
+      $presets->name => $presets
+    );
+  }
+
+  if ($enabled) {
+    $presets = array_filter($presets, '_drulenium_enabled_presets_filter');
+  }
+
+  if (isset($name)) {
+    return isset($presets[$name]) ? $presets[$name] : FALSE;
+  }
+
+  return $presets;
+}
+
+/**
+ * filter presets based on come conditions $args
+ * @see ctools_export_load_object()
+ */
+function _drulenium_enabled_presets_filter($preset) {
+  return (isset($preset->disabled) && ($preset->disabled)) ? FALSE : TRUE;
+}
+
+function drulenium_get_presets_by_type($type, $en = TRUE) {
+  $result = array();
+  $presets = drulenium_get_presets($name = NULL, $enabled = $en);
+  if (! empty($presets)) {
+    foreach ( $presets as $preset ) {
+      if ($preset->plugin_type == $type) {
+        $result[] = $preset;
+      }
+    }
+  }
+
+  return $result;
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function drulenium_views_api() {
+  return array(
+    'api' => 3,
+  );
+}
+
+function _drulenium_startsWith($haystack, $needle)
+{
+  $length = strlen($needle);
+  return (substr($haystack, 0, $length) === $needle);
+}
+
+function _drulenium_endsWith($haystack, $needle)
+{
+  $length = strlen($needle);
+  if ($length == 0) {
+    return true;
+  }
+
+  return (substr($haystack, -$length) === $needle);
+}
+
+function _drulenium_contains($substring, $string) {
+  $pos = strpos($string, $substring);
+
+  if($pos === false) {
+    // string needle NOT found in haystack
+    return false;
+  }
+  else {
+    // string needle found in haystack
+    return true;
+  }
+
+}

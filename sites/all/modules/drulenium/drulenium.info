@@ -1,0 +1,24 @@
+name = Drulenium
+description = Provides environment to create selenium test cases
+# For Blockly
+dependencies[] = libraries
+dependencies[] = ctools
+dependencies[] = entity
+dependencies[] = eck
+dependencies[] = drulenium_feature
+dependencies[] = drulenium_visual_regression
+
+package = Testing
+core =7.x
+
+configure = drulenium/tests
+
+files[] = plugins/views/drulenium_handler_field.inc
+files[] = plugins/export_ui/drulenium_presets_ui.inc
+
+; Information added by Drupal.org packaging script on 2016-04-07
+version = "7.x-2.x-dev"
+core = "7.x"
+project = "drulenium"
+datestamp = "1460070541"
+

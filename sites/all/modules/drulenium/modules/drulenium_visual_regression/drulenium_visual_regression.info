@@ -1,0 +1,14 @@
+name = "Drulenium Visual Regression"
+description = "helps in Visual regression testing"
+package = "Testing"
+core =7.x
+
+configure = admin/structure/drulenium/vr
+dependencies[] = "diff"
+
+; Information added by Drupal.org packaging script on 2016-04-07
+version = "7.x-2.x-dev"
+core = "7.x"
+project = "drulenium"
+datestamp = "1460070541"
+
